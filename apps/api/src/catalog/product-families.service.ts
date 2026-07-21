@@ -79,13 +79,13 @@ export class ProductFamiliesService {
     if (!parent) {
       throw new NotFoundException({
         code: "PRODUCT_NOT_FOUND",
-        message: "Parent product not found",
+        message: "Anchor product not found",
       });
     }
     if (parent.family) {
       throw new ConflictException({
         code: "PRODUCT_ALREADY_HAS_FAMILY",
-        message: "This parent product already belongs to a family",
+        message: "This product already anchors another family",
       });
     }
 
@@ -102,7 +102,7 @@ export class ProductFamiliesService {
       throw new BadRequestException({
         code: "FAMILY_VARIANT_INVALID",
         message:
-          "Every family member must be an active variant of the selected parent product",
+          "Every family member must be an active sellable identity of a catalog product",
       });
     }
     if (
@@ -240,7 +240,7 @@ export class ProductFamiliesService {
       throw new BadRequestException({
         code: "FAMILY_VARIANT_INVALID",
         message:
-          "The member must be an active variant of the family parent product",
+          "The member must be an active sellable identity of a catalog product",
       });
     }
 

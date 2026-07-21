@@ -38,7 +38,13 @@ type NavItem = { label: string; to: string; icon: Icon };
 type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
-  { label: "Overview", items: [{ label: "Dashboard", to: "/", icon: SquaresFour }] },
+  {
+    label: "Overview",
+    items: [
+      { label: "Dashboard", to: "/", icon: SquaresFour },
+      { label: "Notifications", to: "/notifications", icon: Bell },
+    ],
+  },
   {
     label: "Catalog",
     items: [
@@ -76,10 +82,9 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const pageNames: Record<string, string> = {
-  ...Object.fromEntries(navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label]))),
-  "/notifications": "Notifications",
-};
+const pageNames: Record<string, string> = Object.fromEntries(
+  navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label])),
+);
 
 function SidebarContent({ closeMobile }: { closeMobile?: () => void }) {
   const { profile } = useAuth();
@@ -175,7 +180,7 @@ export function AppShell() {
           </div>
 
           <div className="topbar-actions">
-            <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}><Dialog.Trigger asChild><button className="global-search" type="button" aria-label="Search workspace"><MagnifyingGlass size={15} aria-hidden="true" /><span>Search workspace</span><kbd>⌘ K</kbd></button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="sheet-overlay command-overlay" /><Dialog.Content className="command-dialog"><Dialog.Title>Search workspace</Dialog.Title><div className="search-control command-search"><MagnifyingGlass size={16} /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page…" /></div><div className="command-results">{searchItems.map((item) => { const IconComponent = item.icon; return <button type="button" key={item.to} onClick={() => { navigate(item.to); setSearchOpen(false); setSearch(""); }}><IconComponent size={17} /><span>{item.label}</span></button>; })}</div><Dialog.Close asChild><Button className="command-close" variant="ghost" size="icon" aria-label="Close search"><X size={17} /></Button></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>
+            <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}><Dialog.Trigger asChild><button className="global-search" type="button" aria-label="Search workspace"><MagnifyingGlass size={15} aria-hidden="true" /><span>Search workspace</span><kbd>⌘ K</kbd></button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="sheet-overlay command-overlay" /><Dialog.Content className="command-dialog"><Dialog.Title>Search workspace</Dialog.Title><div className="search-control command-search"><MagnifyingGlass size={16} aria-hidden="true" /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page…" aria-label="Find a page" /></div><div className="command-results">{searchItems.map((item) => { const IconComponent = item.icon; return <button type="button" key={item.to} onClick={() => { navigate(item.to); setSearchOpen(false); setSearch(""); }}><IconComponent size={17} /><span>{item.label}</span></button>; })}</div><Dialog.Close asChild><Button className="command-close" variant="ghost" size="icon" aria-label="Close search"><X size={17} /></Button></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>
             <Button variant="ghost" size="icon" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark((value) => !value)}>
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>

@@ -75,6 +75,22 @@ describe("eMAG payload builder", () => {
       family_type_id: 4140,
     });
   });
+  it("blocks a canonical family without a numeric seller ID and keeps it out of the payload", () => {
+    const input = source();
+    input.family = {
+      id: null,
+      name: "Costum medical, Model Clasic, Bumbac",
+      familyTypeId: 4140,
+    };
+    input.allowedFamilyTypeIds = [4140];
+
+    const result = buildEmagProductOfferPayload(input);
+
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "EMAG_FAMILY_ID_MISSING" }),
+    );
+    expect(result.payload.family).toBeUndefined();
+  });
   it("rejects a missing or category-incompatible family type", () => {
     const missing = source();
     missing.family = { id: 120, name: "Costum medical" };

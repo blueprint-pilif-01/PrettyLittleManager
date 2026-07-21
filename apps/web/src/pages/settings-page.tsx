@@ -102,7 +102,7 @@ export function SettingsPage() {
   const activeEmag = emag.data?.find((account) => account.isActive);
 
   return <div className="page-stack settings-page">
-    <PageHeader title="Settings" description="Configure defaults and access for Pretty Little Things. Technical diagnostics are kept in their own section." />
+    <PageHeader title="Settings" description={`Configure defaults and access for ${workspace.company.name}. Technical diagnostics are kept in their own section.`} />
     <div className="settings-layout">
       <nav className="settings-nav" aria-label="Settings sections">
         {tabs.map(({ id, label, description, icon: Icon }) => <button key={id} type="button" className={tab === id ? "active" : ""} onClick={() => { setTab(id); setNotice(""); }} aria-current={tab === id ? "page" : undefined}><Icon size={17} /><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={14} /></button>)}

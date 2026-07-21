@@ -1886,10 +1886,12 @@ export function ProductDetailPage() {
                 <form className="variant-editor" onSubmit={submitVariant}>
                   <div className="variant-editor-heading">
                     <div>
-                      <h3>Add variant</h3>
+                      <h3>Add sellable identity</h3>
                       <p>
-                        Creates a sellable SKU
-                        {item.family ? " and attaches it to this family" : ""}.
+                        This product has no SKU yet. Create its single SKU and
+                        EAN
+                        {item.family ? " and attach it to this family" : ""}.
+                        Each size or color combination is its own product.
                       </p>
                     </div>
                     <Plus size={18} />
@@ -2135,7 +2137,9 @@ export function ProductDetailPage() {
                   )}
                   <Button type="submit" disabled={addVariant.isPending}>
                     <Plus size={15} />
-                    {addVariant.isPending ? "Creating…" : "Create variant"}
+                    {addVariant.isPending
+                      ? "Creating…"
+                      : "Create sellable identity"}
                   </Button>
                 </form>
               )}

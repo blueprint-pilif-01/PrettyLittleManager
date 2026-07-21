@@ -41,7 +41,8 @@ export type EmagPayloadSource = {
   stock: number;
   greenTax?: string | null;
   family?: {
-    id: number;
+    /** Canonical seller family ID; null when the family has no numeric ID yet. */
+    id: number | null;
     name?: string | null;
     familyTypeId?: number | null;
   } | null;
@@ -90,12 +91,21 @@ export function validateEmagPayloadSource(
     "Sale price must be greater than zero",
   );
   if (source.family && source.family.id !== 0) {
-    required(
-      source.family.id > 0,
-      "sellerFamilyId",
-      "EMAG_FAMILY_ID_INVALID",
-      "Enter the positive seller family ID shared by all family products",
-    );
+    if (source.family.id === null) {
+      issues.push({
+        field: "sellerFamilyId",
+        code: "EMAG_FAMILY_ID_MISSING",
+        message:
+          "Assign a numeric seller family ID to the product family before publishing",
+      });
+    } else {
+      required(
+        source.family.id > 0,
+        "sellerFamilyId",
+        "EMAG_FAMILY_ID_INVALID",
+        "Enter the positive seller family ID shared by all family products",
+      );
+    }
     required(
       Boolean(source.family.name?.trim()),
       "familyName",
@@ -289,7 +299,7 @@ export function buildEmagProductOfferPayload(source: EmagPayloadSource): {
       ean: source.gtin ? [source.gtin] : undefined,
       safety_information: source.safetyInformation || undefined,
     });
-    if (source.family)
+    if (source.family && source.family.id !== null)
       payload.family = {
         id: source.family.id,
         ...(source.family.name ? { name: source.family.name } : {}),

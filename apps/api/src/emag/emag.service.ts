@@ -469,11 +469,11 @@ export class EmagService {
     const resolvedInput = source.family
       ? {
           ...input,
-          sellerFamilyId: source.family.id,
+          sellerFamilyId: source.family.id ?? undefined,
           familyName: source.family.name ?? undefined,
           familyTypeId: source.family.familyTypeId ?? undefined,
         }
-      : normalizedInput;
+      : { ...normalizedInput, sellerFamilyId: undefined, familyName: undefined };
     const existing = await this.prisma.channelListing.findFirst({
       where: {
         companyId: auth.companyId,
@@ -634,21 +634,18 @@ export class EmagService {
       ...variant.imageAssignments,
       ...product.imageAssignments,
     ];
+    // Family identity always comes from the canonical server-side
+    // ProductFamily. Free-text family input is never trusted for the payload;
+    // a family without a numeric seller ID becomes a blocking validation issue.
     const canonicalFamily =
       variant.familyMemberships?.[0]?.family ?? product.family;
     const family = canonicalFamily
       ? {
-          id: canonicalFamily.sellerFamilyId ?? -1,
+          id: canonicalFamily.sellerFamilyId ?? null,
           name: canonicalFamily.name,
           familyTypeId: input.familyTypeId,
         }
-      : input.sellerFamilyId === undefined
-        ? null
-        : {
-            id: input.sellerFamilyId,
-            name: input.familyName,
-            familyTypeId: input.familyTypeId,
-          };
+      : null;
     return {
       publicationPath: input.publicationPath,
       sellerProductId: input.sellerProductId,
