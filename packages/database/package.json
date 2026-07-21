@@ -1,0 +1,32 @@
+{
+  "name": "@plm/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "studio": "prisma studio",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@plm/contracts": "workspace:*",
+    "@prisma/client": "^6.10.1",
+    "argon2": "^0.43.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.10.1",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

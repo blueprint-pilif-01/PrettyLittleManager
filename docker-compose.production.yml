@@ -1,0 +1,239 @@
+name: pretty-little-manager-production
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - object_storage_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-plm-media}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set plm http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "plm/$${OBJECT_STORAGE_BUCKET}"
+    networks: [backend]
+
+  migration:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      target: migration
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      target: api
+    restart: unless-stopped
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      API_PORT: 3000
+      WEB_ORIGIN: https://${APP_HOST:?APP_HOST is required}
+      API_PUBLIC_URL: https://${APP_HOST:?APP_HOST is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      OBJECT_STORAGE_DRIVER: s3
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-eu-central-1}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-plm-media}
+      OBJECT_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      OBJECT_STORAGE_PUBLIC_URL: https://${APP_HOST}/api/v1/media
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      INITIAL_SETUP_TOKEN: ${INITIAL_SETUP_TOKEN:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      WORKSPACE_SLUG: ${WORKSPACE_SLUG:-aline}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      EMAG_MODE: ${EMAG_MODE:-mock}
+      EMAG_MARKETPLACE: ${EMAG_MARKETPLACE:-EMAG_RO}
+      EMAG_API_URL: ${EMAG_API_URL:-https://marketplace-api.emag.ro/api-3}
+      EMAG_USERNAME: ${EMAG_USERNAME:-}
+      EMAG_PASSWORD: ${EMAG_PASSWORD:-}
+      EMAG_TIMEOUT_MS: ${EMAG_TIMEOUT_MS:-15000}
+      EMAG_MAX_RETRIES: ${EMAG_MAX_RETRIES:-4}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/readiness').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [backend]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      target: worker
+    restart: unless-stopped
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      OBJECT_STORAGE_DRIVER: s3
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-eu-central-1}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-plm-media}
+      OBJECT_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      OBJECT_STORAGE_PUBLIC_URL: https://${APP_HOST}/api/v1/media
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      WEB_ORIGIN: https://${APP_HOST:?APP_HOST is required}
+      API_PUBLIC_URL: https://${APP_HOST:?APP_HOST is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      EMAG_MODE: ${EMAG_MODE:-mock}
+      EMAG_MARKETPLACE: ${EMAG_MARKETPLACE:-EMAG_RO}
+      EMAG_API_URL: ${EMAG_API_URL:-https://marketplace-api.emag.ro/api-3}
+      EMAG_USERNAME: ${EMAG_USERNAME:-}
+      EMAG_PASSWORD: ${EMAG_PASSWORD:-}
+      EMAG_TIMEOUT_MS: ${EMAG_TIMEOUT_MS:-15000}
+      EMAG_MAX_RETRIES: ${EMAG_MAX_RETRIES:-4}
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      target: web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [frontend]
+
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    environment:
+      APP_HOST: ${APP_HOST:?APP_HOST is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend, backend]
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:?POSTGRES_DB is required}
+      PGUSER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - database_backups:/backups
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        while true; do
+          target="/backups/plm-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+          pg_dump --format=custom --no-owner --file="$$target"
+          find /backups -type f -name 'plm-*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
+          sleep 86400
+        done
+    networks: [backend]
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  object_storage_data:
+  database_backups:
+  caddy_data:
+  caddy_config:

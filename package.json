@@ -1,0 +1,31 @@
+{
+  "name": "pretty-little-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pretty Little Things' private product, inventory, and marketplace operations workspace.",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @plm/web --filter @plm/api --filter @plm/worker dev",
+    "dev:web": "pnpm --filter @plm/web dev",
+    "dev:api": "pnpm --filter @plm/api dev",
+    "dev:worker": "pnpm --filter @plm/worker dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @plm/database generate",
+    "db:migrate": "pnpm --filter @plm/database migrate",
+    "db:studio": "pnpm --filter @plm/database studio",
+    "infra:up": "docker compose up -d postgres redis minio mailpit",
+    "infra:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  }
+}

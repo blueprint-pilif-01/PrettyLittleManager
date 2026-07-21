@@ -1,0 +1,23 @@
+{
+  "name": "@plm/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@plm/emag": "workspace:*",
+    "@prisma/client": "6.19.3",
+    "bullmq": "^5.54.2",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.3"
+  }
+}
