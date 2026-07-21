@@ -2,6 +2,63 @@
 
 Folosește acest document ca prompt principal într-un task Codex nou. Nu porni proiectul de la zero și nu rescrie ce funcționează deja. Continuă din starea actuală a fișierelor și verifică fiecare afirmație prin cod, baze de date și teste.
 
+## Stare la zi — sesiunea 22 iulie 2026
+
+Citește această secțiune înainte de restul documentului; ea reflectă ultima stare verificată.
+
+### Repo și verificări
+
+- Repo-ul git a fost inițializat și publicat pe GitHub: `https://github.com/blueprint-pilif-01/PrettyLittleManager` (branch `main`). `.env` este exclus din git, iar parola DB a fost scoasă din acest document.
+- `pnpm typecheck`, `pnpm test` (toate testele API trec, inclusiv testele noi de payload) și `pnpm build` trec integral.
+- `prisma migrate status` este curat, fără drift.
+
+### Bugfix-uri eMAG (rezolvate și testate)
+
+- `apps/api/src/emag/emag.service.ts`: eliminat fallback-ul `sellerFamilyId ?? -1` — familia canonică fără ID numeric trimite acum `id: null` către builder, nu `-1`.
+- Eliminat fallback-ul pe text liber (`input.sellerFamilyId`/`input.familyName`) când nu există familie canonică din `ProductFamilyMember`; la update, câmpurile de familie se golesc explicit pentru produse standalone.
+- `apps/api/src/emag/emag-payload.builder.ts`: `family.id` acceptă `number | null`; cod nou de validare `EMAG_FAMILY_ID_MISSING` când familia există dar nu are ID numeric; familia fără ID nu mai este inclusă în payload.
+- Test nou în `emag-payload.builder.test.ts` pentru familia canonică cu ID null.
+
+### UI/UX (implementate)
+
+- Terminologie: mesajele API din `product-families.service.ts` folosesc „anchor product" în loc de „parent product"; ramura fără SKU din `product-detail-page.tsx` afișează „Add sellable identity"/„Create sellable identity" cu explicația regulii un-SKU-per-produs.
+- Accesibilitate: `aria-label` pe search-ul din Products, butoanele de paginare și butonul de închidere al dialogului de stoc; `htmlFor`/`id` pe toate label-urile din formularele eMAG; `aria-hidden` pe icoanele decorative.
+- `emag-page.tsx` refăcut: panou EAN lookup (textarea + job în background + polling + rezultate cu produsele găsite), operații pe listing printr-un dropdown (publish/price/stock/status/reconcile) cu buton „Run", afișarea validation issues și `lastError` sub celula produsului, panou de readiness pentru conturile live când `canPublish` este false, badge-uri pentru status și mod cont.
+- `app-shell.tsx`: command palette caută produse după nume/SKU/EAN (grup „Products"), clopoțelul de notificări are badge cu numărul nerezolvate din `workspace-summary`, Notifications este în sidebar.
+- `notifications-page.tsx`: notificările deschise primele, secțiune „Recently resolved" (max 15), timpi relativi cu tooltip exact.
+- `dashboard-page.tsx`: skeleton loaders în loc de „…", timpi relativi la joburile recente.
+- `settings-page.tsx`: numele companiei este dinamic din workspace, nu hardcodat.
+- `apps/web/src/lib/utils.ts`: utilitare noi `formatRelativeTime`/`formatExactTime`.
+- `styles.css`: stiluri complete pentru notificări (lipseau — pagina era nestilată), palette results, bell badge, stat skeletons; fix anti-pattern side-stripe la `.concept-note` (border complet în loc de `border-left`).
+
+### Servicii locale — fără Docker (constrângere explicită a utilizatorului)
+
+Utilizatorul a cerut explicit să NU se folosească Docker (nu funcționează la el). Setup-ul local funcțional:
+
+- PostgreSQL rulează nativ pe Windows pe portul 5432 (gestionat cu pgAdmin).
+- Web dev server (Vite) pe `http://localhost:5173`.
+- Redis rulează în WSL Ubuntu-24.04, pornit manual pe portul 6380:
+
+```powershell
+wsl -d Ubuntu-24.04 -- redis-server --port 6380 --bind 0.0.0.0 --protected-mode no --daemonize yes
+```
+
+  Este accesibil din Windows pe `127.0.0.1:6380` (verificat cu Test-NetConnection). Instanța implicită WSL pe 6379 NU este accesibilă din Windows — folosește portul 6380.
+- `REDIS_URL` din `.env` trebuie să fie `redis://127.0.0.1:6380` pentru API și worker; repornește API-ul (port 3000) după modificare.
+
+### Pașii următori actualizați (ordinea recomandată)
+
+1. Pornire completă locală: setează `REDIS_URL=redis://127.0.0.1:6380` în `.env`, pornește API-ul și worker-ul, verifică health endpoints și login-ul în browser.
+2. Teste lifecycle familie — pasul original „2. Verifică logica remove/re-anchor": remove member, re-anchor, familie goală + primul membru, combinație size/color duplicată, schimbare axe cu revalidare membri.
+3. Migrare controlată legacy multi-SKU — pasul original 6 (operație idempotentă cu dry-run).
+4. UX „Create another variation" cu duplicarea datelor comune — pasul original 5.
+5. Password reset flow în UI (lipsește complet).
+6. E2E real Garmendi → PLM — pasul original 7.
+7. Verificare eMAG payload pe două SKU-uri — pasul original 8.
+8. Browser QA final — pasul original 9.
+
+Pasul original 1 (formatare/compilare) este făcut — totul trece. Pasul original 4 (terminologie PARENT/multi-SKU) este în mare parte făcut pe partea PLM; mai verifică repo-ul Garmendi.
+
 ## Rol și obiectiv
 
 Ești Senior Software Architect, Senior Full-Stack Engineer, Database Architect și UX Engineer. Obiectivul activ este:
