@@ -16,7 +16,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { api, errorMessage } from "../lib/api";
-import { formatNumber } from "../lib/utils";
+import { formatExactTime, formatNumber, formatRelativeTime } from "../lib/utils";
 
 type Summary = {
   catalog: { totalProducts: number; variants: number; byStatus: Record<string, number>; readyForChannels: number };
@@ -60,7 +60,7 @@ export function DashboardPage() {
     />
 
     <section className="operations-strip" aria-label="Workspace summary">
-      {stats.map((stat) => <div key={stat.label} className={stat.attention ? "attention" : ""}><span>{stat.label}</span><strong>{summary.isLoading ? "..." : formatNumber(stat.value)}</strong><small>{stat.detail}</small></div>)}
+      {stats.map((stat) => <div key={stat.label} className={stat.attention ? "attention" : ""}><span>{stat.label}</span><strong>{summary.isLoading ? <span className="stat-skeleton" aria-label="Loading" /> : formatNumber(stat.value)}</strong><small>{stat.detail}</small></div>)}
     </section>
 
     <div className="operations-grid">
@@ -89,7 +89,7 @@ export function DashboardPage() {
 
     <section className="operations-panel recent-operations">
       <div className="section-heading"><div><h2>Recent operations</h2><p>Imports, exports and synchronization jobs recorded by the system.</p></div><Button asChild variant="ghost" size="sm"><Link to="/synchronization">View all <ArrowRight size={14} /></Link></Button></div>
-      <Table><TableHeader><TableRow><TableHead>Operation</TableHead><TableHead>Queue</TableHead><TableHead>Progress</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Started</TableHead></TableRow></TableHeader><TableBody>{data?.recentJobs.map((job) => <TableRow key={job.id}><TableCell className="font-medium">{readableJobType(job.type)}</TableCell><TableCell className="text-muted">{readableJobType(job.queueName)}</TableCell><TableCell>{job.progress}%</TableCell><TableCell><Badge tone={jobTone(job.status)}>{readableJobType(job.status)}</Badge></TableCell><TableCell className="text-right text-muted">{new Date(job.createdAt).toLocaleString("ro-RO")}</TableCell></TableRow>)}</TableBody></Table>
+      <Table><TableHeader><TableRow><TableHead>Operation</TableHead><TableHead>Queue</TableHead><TableHead>Progress</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Started</TableHead></TableRow></TableHeader><TableBody>{data?.recentJobs.map((job) => <TableRow key={job.id}><TableCell className="font-medium">{readableJobType(job.type)}</TableCell><TableCell className="text-muted">{readableJobType(job.queueName)}</TableCell><TableCell>{job.progress}%</TableCell><TableCell><Badge tone={jobTone(job.status)}>{readableJobType(job.status)}</Badge></TableCell><TableCell className="text-right text-muted whitespace-nowrap"><span title={formatExactTime(job.createdAt)}>{formatRelativeTime(job.createdAt)}</span></TableCell></TableRow>)}</TableBody></Table>
       {data && !data.recentJobs.length && <div className="inline-empty compact"><span>No background operations yet. Imports, exports and synchronization jobs will appear here.</span></div>}
     </section>
   </div>;

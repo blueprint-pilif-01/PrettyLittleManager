@@ -29,10 +29,12 @@ import {
   X,
   type Icon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "../auth/auth-context";
+import { api } from "../lib/api";
 
 type NavItem = { label: string; to: string; icon: Icon };
 type NavGroup = { label: string; items: NavItem[] };
@@ -86,6 +88,14 @@ const pageNames: Record<string, string> = Object.fromEntries(
   navGroups.flatMap((group) => group.items.map((item) => [item.to, item.label])),
 );
 
+type CommandProduct = {
+  id: string;
+  publicName: string;
+  variants: Array<{ sku: string; gtin?: string }>;
+};
+type CommandProductPage = { items: CommandProduct[] };
+type AttentionSummary = { attention: { unresolvedNotifications: number } };
+
 function SidebarContent({ closeMobile }: { closeMobile?: () => void }) {
   const { profile } = useAuth();
   const workspaceName = profile?.company.name ?? "Pretty Little Things";
@@ -135,6 +145,19 @@ export function AppShell() {
   const [dark, setDark] = useState(() => localStorage.getItem("plm-theme") === "dark");
   const title = location.pathname === "/products/new" ? "New product" : location.pathname.startsWith("/products/") ? "Product details" : pageNames[location.pathname] ?? "PrettyLittleManager";
   const searchItems = navGroups.flatMap((group) => group.items).filter((item) => item.label.toLowerCase().includes(search.toLowerCase()));
+  const productSearch = useQuery({
+    queryKey: ["command-products", search],
+    queryFn: () => api<CommandProductPage>(`/products?limit=6&search=${encodeURIComponent(search)}`),
+    enabled: searchOpen && search.trim().length >= 2,
+    staleTime: 15_000,
+  });
+  const attention = useQuery({
+    queryKey: ["workspace-summary"],
+    queryFn: () => api<AttentionSummary>("/workspace/summary"),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unresolvedCount = attention.data?.attention.unresolvedNotifications ?? 0;
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -180,11 +203,11 @@ export function AppShell() {
           </div>
 
           <div className="topbar-actions">
-            <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}><Dialog.Trigger asChild><button className="global-search" type="button" aria-label="Search workspace"><MagnifyingGlass size={15} aria-hidden="true" /><span>Search workspace</span><kbd>⌘ K</kbd></button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="sheet-overlay command-overlay" /><Dialog.Content className="command-dialog"><Dialog.Title>Search workspace</Dialog.Title><div className="search-control command-search"><MagnifyingGlass size={16} aria-hidden="true" /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page…" aria-label="Find a page" /></div><div className="command-results">{searchItems.map((item) => { const IconComponent = item.icon; return <button type="button" key={item.to} onClick={() => { navigate(item.to); setSearchOpen(false); setSearch(""); }}><IconComponent size={17} /><span>{item.label}</span></button>; })}</div><Dialog.Close asChild><Button className="command-close" variant="ghost" size="icon" aria-label="Close search"><X size={17} /></Button></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>
+            <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}><Dialog.Trigger asChild><button className="global-search" type="button" aria-label="Search workspace"><MagnifyingGlass size={15} aria-hidden="true" /><span>Search workspace</span><kbd>⌘ K</kbd></button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="sheet-overlay command-overlay" /><Dialog.Content className="command-dialog"><Dialog.Title>Search workspace</Dialog.Title><div className="search-control command-search"><MagnifyingGlass size={16} aria-hidden="true" /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page…" aria-label="Find a page" /></div><div className="command-results">{searchItems.length > 0 && <p className="command-group-label">Pages</p>}{searchItems.map((item) => { const IconComponent = item.icon; return <button type="button" key={item.to} onClick={() => { navigate(item.to); setSearchOpen(false); setSearch(""); }}><IconComponent size={17} aria-hidden="true" /><span>{item.label}</span></button>; })}{search.trim().length >= 2 && <>{(productSearch.data?.items.length ?? 0) > 0 && <p className="command-group-label">Products</p>}{productSearch.data?.items.map((product) => <button type="button" key={product.id} onClick={() => { navigate(`/products/${product.id}`); setSearchOpen(false); setSearch(""); }}><Package size={17} aria-hidden="true" /><span>{product.publicName}<small className="command-result-detail">{product.variants[0]?.sku ?? "No SKU"}{product.variants[0]?.gtin ? ` · ${product.variants[0].gtin}` : ""}</small></span></button>)}{productSearch.isLoading && <p className="command-hint">Searching products…</p>}{productSearch.data && productSearch.data.items.length === 0 && <p className="command-hint">No products match “{search.trim()}”.</p>}</>}{search.trim().length < 2 && <p className="command-hint">Type at least 2 characters to search products by name, SKU or EAN.</p>}</div><Dialog.Close asChild><Button className="command-close" variant="ghost" size="icon" aria-label="Close search"><X size={17} /></Button></Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>
             <Button variant="ghost" size="icon" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark((value) => !value)}>
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
-            <Button asChild variant="ghost" size="icon" aria-label="Notifications"><Link to="/notifications"><Bell size={18} /></Link></Button>
+            <Button asChild variant="ghost" size="icon" aria-label={unresolvedCount ? `Notifications, ${unresolvedCount} unresolved` : "Notifications"}><Link to="/notifications" className="bell-link"><Bell size={18} />{unresolvedCount > 0 && <span className="bell-count" aria-hidden="true">{unresolvedCount > 99 ? "99+" : unresolvedCount}</span>}</Link></Button>
             <Link className="user-menu" to="/settings" aria-label="Open account settings">
               <span className="avatar">{profile?.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase()}</span>
               <span className="user-copy"><strong>{profile?.displayName}</strong><small>{profile?.role.name}</small></span>

@@ -138,7 +138,13 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .command-results { display: grid; max-height: 330px; overflow: auto; padding: 0 8px 10px; }
 .command-results button { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; cursor: pointer; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: .72rem; text-align: left; }
 .command-results button:hover, .command-results button:focus-visible { background: var(--surface-hover); color: var(--text); }
+.command-results button > span { display: flex; min-width: 0; flex-direction: column; line-height: 1.25; }
+.command-result-detail { overflow: hidden; color: var(--text-subtle); font-size: .6rem; text-overflow: ellipsis; white-space: nowrap; }
+.command-group-label { margin: 8px 10px 3px; color: var(--text-subtle); font-size: .58rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.command-hint { margin: 6px 10px 8px; color: var(--text-subtle); font-size: .66rem; line-height: 1.5; }
 .command-close { position: absolute; top: 9px; right: 9px; }
+.bell-link { position: relative; display: inline-flex; }
+.bell-count { position: absolute; top: -4px; right: -6px; display: grid; min-width: 15px; height: 15px; padding: 0 3px; place-items: center; border-radius: 999px; background: var(--danger); color: #fff; font-size: .55rem; font-weight: 750; line-height: 1; }
 
 .content { width: 100%; max-width: 1560px; margin: 0 auto; padding: 28px 30px 48px; }
 .page-stack { display: flex; flex-direction: column; gap: 20px; }
@@ -150,6 +156,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .loading-line { width: 100%; height: 3px; overflow: hidden; background: var(--surface-hover); }
 .loading-line::after { content: ""; display: block; width: 34%; height: 100%; background: var(--primary); animation: loading-line 900ms ease-in-out infinite alternate; }
 .loading-panel { display: grid; min-height: 260px; place-items: center; color: var(--text-muted); font-size: .75rem; }
+.stat-skeleton { display: inline-block; width: 52px; height: 1.05em; border-radius: 4px; background: var(--surface-hover); vertical-align: middle; animation: skeleton-pulse 1.2s cubic-bezier(.22,1,.36,1) infinite alternate; }
 
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric-card { display: flex; align-items: flex-start; gap: 12px; padding: 15px; }
@@ -397,6 +404,25 @@ details summary { cursor: pointer; color: var(--primary); font-size: .68rem; fon
 .inline-success > span { display: flex; flex-direction: column; gap: 3px; }
 .inline-success strong { font-size: .75rem; }
 .inline-success small { color: var(--text-muted); font-size: .65rem; }
+
+.notification-list { display: grid; gap: 8px; }
+.notification-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 13px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.notification-row > svg { margin-top: 1px; color: var(--text-subtle); }
+.notification-row.severity-error > svg { color: var(--danger-text); }
+.notification-row.severity-warning > svg { color: var(--warning-text); }
+.notification-row.severity-info > svg { color: var(--info-text); }
+.notification-row > div:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.notification-row > div:nth-child(2) > div { display: flex; align-items: center; gap: 8px; }
+.notification-row strong { font-size: .75rem; font-weight: 650; }
+.notification-row p { margin: 0; color: var(--text-muted); font-size: .7rem; line-height: 1.5; }
+.notification-row small { color: var(--text-subtle); font-size: .62rem; }
+.notification-row > div:last-child { display: flex; flex: 0 0 auto; gap: 6px; }
+.notification-row.resolved { background: var(--surface-subtle); }
+.notification-row.resolved strong { color: var(--text-muted); }
+.notification-empty { min-height: 160px; border: 1px dashed var(--border-strong); border-radius: 8px; }
+.notification-history > summary { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 6px 10px; cursor: pointer; border-radius: 6px; color: var(--text-muted); font-size: .7rem; font-weight: 650; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.notification-history > summary:hover { background: var(--surface-hover); color: var(--text); }
+.notification-history > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .operations-side { display: flex; flex-direction: column; gap: 20px; }
 .channel-summary { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .channel-summary-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 7px; background: var(--selected); color: var(--primary); }
@@ -449,7 +475,7 @@ details summary { cursor: pointer; color: var(--primary); font-size: .68rem; fon
 .editor-field-label > span { color: var(--text-subtle); font-size: .55rem; font-weight: 650; letter-spacing: .025em; text-transform: uppercase; }
 .editor-field .field-help { display: block; max-width: 72ch; margin-top: 1px; font-size: .6rem; line-height: 1.5; }
 .editor-section-kicker { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--info-border); border-radius: 999px; background: var(--info-soft); color: var(--info-text); font-size: .6rem; font-weight: 700; }
-.concept-note { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; margin-bottom: 18px; padding: 12px 13px; border-left: 3px solid var(--primary); background: var(--surface-subtle); }
+.concept-note { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; margin-bottom: 18px; padding: 12px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-subtle); }
 .concept-note > svg { margin-top: 1px; color: var(--primary); }
 .concept-note strong { font-size: .7rem; }
 .concept-note p { margin: 3px 0 0; color: var(--text-muted); font-size: .64rem; line-height: 1.55; }
